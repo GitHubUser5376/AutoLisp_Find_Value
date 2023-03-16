@@ -1,14 +1,28 @@
 ;;; ==================================================================================================== ;;;
 ;;; Find Value Function ============================================================ Find Value Function ;;;
 
-(defun FindValue-Debugger (sTag vValue / *lVlaObjects* *vla-getlist* ObjPath *lResults* lResult *error*)
+;;; --------------------------------------------------------------------------------- ;;;
+;;; Created By:   Garrett Beck
+;;; Date Created: 2023/01/17
+;;; Source:       https://github.com/GitHubUser5376/AutoLisp_Find_Value
+;;; Example:      (C:FindValue-Debugger nil "ByLayer")
+;;; --------------------------------------------------------------------------------- ;;;
+(defun C:FindValue-Debugger (sTag vValue / ; Input variables
+    ObjPath lResult ;----------------------; Local variable
+    *lVlaObjects* *vla-getlist* *lResults* ; sub function use variables
+    *error* ;------------------------------; sub function use variables
+    FindValue-vla-getlist ;----------------; Local sub function
+    FindValue-vl-property-available ;------; Local sub function
+    RecursiveFind ;------------------------; Local sub function
+    ); Local variable declarations
+
     ;;; ------------------------------------------------------------------------- ;;;
     ;;; Local functions ----------------------------------------- Local functions ;;;
 
     ;; Source: https://forums.autodesk.com/t5/visual-lisp-autolisp-and-general/vlax-dump-object/m-p/1079460/highlight/true#M155423
     
     ;; Returns all properties
-    (defun FindValue:vla-getlist (/ fcnLambda01 fcnLambda02 fcnLambda03 lBadProperties)
+    (defun FindValue-vla-getlist (/ fcnLambda01 fcnLambda02 fcnLambda03 lBadProperties)
         (setq fcnLambda01 (function (lambda (x) (wcmatch (strcase x) "VLA-GET-*"))))
         (setq fcnLambda02 (function (lambda (x) (substr x 9))))
         (setq fcnLambda03 (function (lambda (x) (member x lBadProperties))))
@@ -21,13 +35,13 @@
         (setq *vla-getlist* (vl-remove-if-not fcnLambda01 (atoms-family 1)))
         (setq *vla-getlist* (mapcar fcnLambda02 *vla-getlist*))
         (setq *vla-getlist* (vl-remove-if fcnLambda03 *vla-getlist*))
-    );FindValue:vla-getlist
+    );FindValue-vla-getlist
 
     ;; Returns available properties
-    (defun FindValue:vl-property-available (en / fcnLambda01 fcnLambda02 lBadProperties lReturn)
+    (defun FindValue-vl-property-available (en / fcnLambda01 fcnLambda02 lBadProperties lReturn)
         (setq fcnLambda01 (function (lambda (x) (vlax-property-available-p en x))))
         (setq lReturn (vl-remove-if-not fcnLambda01 *vla-getlist*))
-    );FindValue:vl-property-available
+    );FindValue-vl-property-available
 
     ;;; Local functions ----------------------------------------- Local functions ;;;
     ;;; ------------------------------------------------------------------------- ;;;
@@ -49,7 +63,7 @@
         (setq *lVlaObjects* (cons vlaObject *lVlaObjects*))
 
         ;; Collecting properties
-        (setq lProperties (FindValue:vl-property-available vlaObject))
+        (setq lProperties (FindValue-vl-property-available vlaObject))
         (GB:Print "lProperties" lProperties T nil)
 
         ;; Each property within the object
@@ -112,11 +126,11 @@
     ;;; Recursive function ----------------------------------- Recursive function ;;;
     ;;; ------------------------------------------------------------------------- ;;;
     ;;; Function call --------------------------------------------- Function call ;;;
-
+    
     ;; Starting recursive search - Returns list variable
     (setq *iItr1* 0)
     (setq *iLevel* 0)
-    (FindValue:vla-getlist)
+    (FindValue-vla-getlist)
     (if (= sTag "")(setq sTag nil))
     (GB:Print-Start nil T T)
     (setq *lResults* (RecursiveFind sTag vValue (vlax-get-acad-object) nil))
@@ -138,64 +152,69 @@
 ;;; ==================================================================================================== ;;;
 ;;; Debug Printer ======================================================================== Debug Printer ;;;
 
+;;; ------------------------------------------------------------------------- ;;;
+;;; Date created: 2023/01/17
+;;; Created By: Garrett Beck
+;;; Source: https://github.com/GitHubUser5376/AutoLisp_Debugger/new/main
+;;; ------------------------------------------------------------------------- ;;;
+
 ;; Global variables
-(setq *gbPrint:PrintID* nil)
 (setq *gbPrint:IsList* nil)
 (setq *gbPrint:bPrintScreen* nil)
 (setq *gbPrint:bPrintFile* nil)
 (setq *gbPrint:bClearOldLog* nil)
 
 ;; Debug Printer
-(defun GB:Print (sMsg vValue bValue bType /)
+(defun GB:Print (sMsg vValue bValue bType / sString FileID)
 
-    ;;
+    ;; Error catch
     (if (/= 'STR (type sMsg))(progn 
         (GB:Print "Error : An invalid variable type was entered into GB:Print's \"sMsg\".")
+        (GB:Print "Error. Invalid variable type" sMsg nil T)
         (exit)
     ));if<-progn
 
-    ;; Print to file
-    (if *gbPrint:bClearOldLog*
-        (progn ;; True
-            (setq *gbPrint:PrintID* (open (strcat (getenv "LOCALAPPDATA") "\\Temp\\AutoLisp-Print.txt") "w"))
+    ;; Print to file - Clear / Append
+    (cond 
+        (   *gbPrint:bClearOldLog*
+            (setq FileID (open (strcat (getenv "LOCALAPPDATA") "\\Temp\\AutoLisp-Print.txt") "w"))
             (setq *gbPrint:bClearOldLog* nil)
-        );progn ; True
-        (setq *gbPrint:PrintID* (open (strcat (getenv "LOCALAPPDATA") "\\Temp\\AutoLisp-Print.txt") "a"))
+        ); Condition 1
+        ;; Condition 2
+        (   *gbPrint:bPrintFile*
+            (setq FileID (open (strcat (getenv "LOCALAPPDATA") "\\Temp\\AutoLisp-Print.txt") "a"))
+        ); Condition 2
     );if
 
-    ;; Extra space
-    (if (and (/= 'LIST (type vValue)) *gbPrint:IsList*)(progn
-        (write-line "" *gbPrint:PrintID*)
-        (setq *gbPrint:IsList* nil)
-    ));if<-progn
-    (if (= 'LIST (type vValue))(progn 
-        (write-line "" *gbPrint:PrintID*)
-        (setq *gbPrint:IsList* T)
-    ));if<-progn
+    ;; Extra space - Output file only
+    (cond 
+        ;; Condition 1 - Adds a new line after the list value, before the next value type is added.
+        (   (and *gbPrint:bPrintFile* (/= 'LIST (type vValue)) *gbPrint:IsList*)
+            (write-line "" FileID)
+            (setq *gbPrint:IsList* nil)
+        ); Condition 1
+        ;; Condition 2 - Adds a new line before the list's value is added.
+        (   (and *gbPrint:bPrintFile* (= 'LIST (type vValue)))
+            (write-line "" FileID)
+            (setq *gbPrint:IsList* T)
+        ); Condition 2
+    );cond
 
-    ;; Writing output
-    (if *gbPrint:bPrintFile*
-        (if bType
-            (write-line (strcat sMsg " : " (vl-prin1-to-string (type vValue))) *gbPrint:PrintID*)
-            (if (or bValue vValue)
-                (write-line (strcat sMsg " : " (vl-prin1-to-string vValue)) *gbPrint:PrintID*)
-                (write-line sMsg *gbPrint:PrintID*)
-            );if
-        );if
-    );if
+    ;; Outbound message
+    (setq sString (cond 
+        (bType (strcat sMsg " : " (vl-prin1-to-string (type vValue))));-----; Condition 1
+        ((or bValue vValue) (strcat sMsg " : " (vl-prin1-to-string vValue))); Condition 2
+        (T sMsg); Else
+    ));setq<-cond
+
+    ;; Writing to output file
+    (if *gbPrint:bPrintFile* (write-line sString FileID))
 
     ;; Printing to the screen
-    (if *gbPrint:bPrintScreen* (progn 
-        (terpri)(princ sMsg)
-        (if bType
-            (progn (princ " : ")(prin1 (type vValue)))
-            (if (or bValue vValue)(progn (princ " : ")(prin1 vValue)))
-        );if
-        (terpri)
-    ));if<-progn
-
-    (close *gbPrint:PrintID*)
-    (setq *gbPrint:PrintID* nil)
+    (if *gbPrint:bPrintScreen* (princ sString))
+    (setq FileID (close FileID))
+    
+    ;; Return value
     vValue
 );GB:Print
 

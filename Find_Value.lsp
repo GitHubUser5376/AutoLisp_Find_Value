@@ -2,16 +2,22 @@
 ;;; Created By:   Garrett Beck
 ;;; Date Created: 2023/01/17
 ;;; Source: https://github.com/GitHubUser5376/AutoLisp_Find_Value
+;;; Example:      (C:FindValue nil "ByLayer")
 ;;; --------------------------------------------------------------------------------- ;;;
-
-(defun FindValue (sTag vValue / *lVlaObjects* *vla-getlist* ObjPath lResults lResult)
+(defun C:FindValue (sTag vValue / ;-; Input variables
+    ObjPath lResult lResults ;------; Local variable
+    *lVlaObjects* *vla-getlist* ;---; sub function use variables
+    FindValue-vla-getlist ;---------; Local sub function
+    FindValue-vl-property-available ; Local sub function
+    RecursiveFind ;-----------------; Local sub function
+    ); Local variable declarations
     ;;; ------------------------------------------------------------------------- ;;;
     ;;; Local functions ----------------------------------------- Local functions ;;;
 
     ;; Source: https://forums.autodesk.com/t5/visual-lisp-autolisp-and-general/vlax-dump-object/m-p/1079460/highlight/true#M155423
     
     ;; Returns all properties
-    (defun FindValue:vla-getlist (/ fcnLambda01 fcnLambda02 fcnLambda03 lBadProperties)
+    (defun FindValue-vla-getlist (/ fcnLambda01 fcnLambda02 fcnLambda03 lBadProperties)
         (setq fcnLambda01 (function (lambda (x) (wcmatch (strcase x) "VLA-GET-*"))))
         (setq fcnLambda02 (function (lambda (x) (substr x 9))))
         (setq fcnLambda03 (function (lambda (x) (member x lBadProperties))))
@@ -24,13 +30,13 @@
         (setq *vla-getlist* (vl-remove-if-not fcnLambda01 (atoms-family 1)))
         (setq *vla-getlist* (mapcar fcnLambda02 *vla-getlist*))
         (setq *vla-getlist* (vl-remove-if fcnLambda03 *vla-getlist*))
-    );FindValue:vla-getlist
+    );FindValue-vla-getlist
 
     ;; Returns available properties
-    (defun FindValue:vl-property-available (en / fcnLambda01 fcnLambda02 lBadProperties lReturn)
+    (defun FindValue-vl-property-available (en / fcnLambda01 fcnLambda02 lBadProperties lReturn)
         (setq fcnLambda01 (function (lambda (x) (vlax-property-available-p en x))))
         (setq lReturn (vl-remove-if-not fcnLambda01 *vla-getlist*))
-    );FindValue:vl-property-available
+    );FindValue-vl-property-available
 
     ;;; Local functions ----------------------------------------- Local functions ;;;
     ;;; ------------------------------------------------------------------------- ;;;
@@ -44,7 +50,7 @@
         (setq *lVlaObjects* (cons vlaObject *lVlaObjects*))
 
         ;; Collecting properties
-        (setq lProperties (FindValue:vl-property-available vlaObject))
+        (setq lProperties (FindValue-vl-property-available vlaObject))
 
         ;; Each property within the object
         (setq lReturn (list))
@@ -102,7 +108,7 @@
     ;;; Function call --------------------------------------------- Function call ;;;
 
     ;; Starting recursive search - Returns list variable
-    (FindValue:vla-getlist)
+    (FindValue-vla-getlist)
     (if (= sTag "")(setq sTag nil))
     (setq lResults (RecursiveFind sTag vValue (vlax-get-acad-object) nil))
 
